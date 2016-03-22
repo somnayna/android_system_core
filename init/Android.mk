@@ -50,6 +50,14 @@ LOCAL_SRC_FILES:= \
     vendor_init.c \
     watchdogd.cpp \
 
+ifeq ($(TARGET_BOARD_PLATFORM),mt6582)
+LOCAL_CFLAGS += -DMTK_MT6582
+endif
+
+ifeq ($(TARGET_BOARD_PLATFORM),mt6592)
+LOCAL_CFLAGS += -DMTK_MT6592
+endif
+
 LOCAL_MODULE:= init
 LOCAL_C_INCLUDES += \
     system/extras/ext4_utils \
