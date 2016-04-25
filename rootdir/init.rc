@@ -664,7 +664,7 @@ service drm /system/bin/drmserver
 service media /system/bin/mediaserver
     class main
     user root
-    group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc mediadrm qcom_diag media sdcard_r system net_bt_stack
+    group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc mediadrm qcom_diag media sdcard_r system net_bt_stack nvram ccci
     ioprio rt 4
 
 # One shot invocation to deal with encrypted volume.
