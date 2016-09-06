@@ -110,6 +110,11 @@
 
 #define AID_APP          10000  /* first app user */
 
+#ifdef MTK_HARDWARE
+#define AID_CCCI          10001
+#define AID_NVRAM         10002
+#endif
+
 #define AID_ISOLATED_START 99000 /* start of uids for fully isolated sandboxed processes */
 #define AID_ISOLATED_END   99999 /* end of uids for fully isolated sandboxed processes */
 
@@ -196,6 +201,10 @@ static const struct android_id_info android_ids[] = {
     { "everybody",     AID_EVERYBODY, },
     { "misc",          AID_MISC, },
     { "nobody",        AID_NOBODY, },
+#ifdef MTK_HARDWARE
+    { "ccci",          AID_CCCI, },
+    { "nvram",         AID_NVRAM, },
+#endif
 };
 
 #define android_id_count \

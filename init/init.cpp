@@ -764,6 +764,44 @@ static int console_init_action(int nargs, char **args)
     return 0;
 }
 
+#ifdef MTK_HARDWARE
+static int read_serialno()
+{
+    char pval[PROP_VALUE_MAX];
+    int fd;
+    char serialno[32];
+    size_t s;
+
+    int ret = property_get("ro.boot.serialno", pval);
+    if (ret > 0) {
+        NOTICE("Already get serial number from cmdline\n");
+        return 1;
+    }
+
+    fd = open("/sys/sys_info/serial_number", O_RDWR);
+    if (fd < 0) {
+        NOTICE("fail to open: %s\n", "/sys/sys_info/serial_number");
+        return 0;
+    }
+    s = read(fd, serialno, sizeof(char)*32);
+
+    serialno[s-1] = '\0';
+
+    close(fd);
+
+    if (s <= 0) {
+	    NOTICE("could not read serial number sys file\n");
+	    return 0;
+	}
+
+    NOTICE( "serial number=%s\n",serialno);
+
+    property_set("ro.boot.serialno", serialno);
+
+    return 1;
+}
+#endif
+
 static void import_kernel_nv(char *name, bool for_emulator)
 {
     char *value = strchr(name, '=');
@@ -807,7 +845,12 @@ static void export_kernel_boot_props() {
         { "ro.boot.mode",       "ro.bootmode",   "unknown", },
         { "ro.boot.baseband",   "ro.baseband",   "unknown", },
         { "ro.boot.bootloader", "ro.bootloader", "unknown", },
-        { "ro.boot.hardware",   "ro.hardware",   "unknown", },
+#ifdef MTK_MT6582     
+        { "ro.boot.hardware",   "ro.hardware",   "mt6582", },
+#endif
+#ifdef MTK_MT6592     
+        { "ro.boot.hardware",   "ro.hardware",   "mt6592", },
+#endif  
         { "ro.boot.revision",   "ro.revision",   "0", },
     };
     for (size_t i = 0; i < ARRAY_SIZE(prop_map); i++) {
@@ -861,6 +904,10 @@ static void process_kernel_cmdline(void)
     import_kernel_cmdline(false, import_kernel_nv);
     if (qemu[0])
         import_kernel_cmdline(true, import_kernel_nv);
+
+#ifdef MTK_HARDWARE
+    read_serialno();
+#endif
 }
 
 static int queue_property_triggers_action(int nargs, char **args)
@@ -903,6 +950,7 @@ static selinux_enforcing_status selinux_status_from_cmdline() {
 
 static bool selinux_is_disabled(void)
 {
+
     if (ALLOW_DISABLE_SELINUX) {
         if (access("/sys/fs/selinux", F_OK) != 0) {
             // SELinux is not compiled into the kernel, or has been disabled
@@ -917,6 +965,8 @@ static bool selinux_is_disabled(void)
 
 static bool selinux_is_enforcing(void)
 {
+    return false;  /*return false then set to permissive*/
+    
     if (ALLOW_DISABLE_SELINUX) {
         return selinux_status_from_cmdline() == SELINUX_ENFORCING;
     }
@@ -988,6 +1038,25 @@ static void selinux_initialize(bool in_kernel_domain) {
     } else {
         selinux_init_all_handles();
     }
+}
+
+static int charging_mode_booting(void)
+{
+#ifndef BOARD_CHARGING_MODE_BOOTING_LPM
+    return 0;
+#else
+    int f;
+    char cmb;
+    f = open(BOARD_CHARGING_MODE_BOOTING_LPM, O_RDONLY);
+    if (f < 0)
+        return 0;
+
+    if (1 != read(f, (void *)&cmb,1))
+        return 0;
+
+    close(f);
+    return ('8' == cmb);
+#endif
 }
 
 int main(int argc, char** argv) {
@@ -1101,7 +1170,7 @@ int main(int argc, char** argv) {
 
     // Don't mount filesystems or start core system services in charger mode.
     char bootmode[PROP_VALUE_MAX];
-    if (property_get("ro.bootmode", bootmode) > 0 && strcmp(bootmode, "charger") == 0) {
+    if ((property_get("ro.bootmode", bootmode) > 0 && strcmp(bootmode, "charger") == 0) || charging_mode_booting()){
         action_for_each_trigger("charger", action_add_queue_tail);
     } else {
         action_for_each_trigger("late-init", action_add_queue_tail);
